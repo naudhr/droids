@@ -1,0 +1,16 @@
+.gitignore
+
+CXXEXE = clang++ -std=c++14 -fcolor-diagnostics
+CXXLD = $(CXXEXE)
+
+CXXFLAGS += -D_GLIBCXX_DEBUG -O2 -g
+
+!cxx = |> ^ CC %f^ $(CXXEXE)  $(CXXFLAGS) -c %f -o %o $(CFLAGSLOCAL) |> %B.o
+!ld = |> ^ LD %o^ $(CXXLD) -shared -o %o %f |>
+!ldexe = |> ^ LINK %o^ $(CXXLD) -Wl,--no-as-needed  %f -o %o $(LOCAL_LDFLAGS) |>
+
+include_rules
+
+: foreach *.cc |> !cxx |>
+: *.o ^test.o |> !ldexe |> main
+: *.o ^main.o |> !ldexe |> test
