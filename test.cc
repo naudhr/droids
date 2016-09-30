@@ -5,6 +5,8 @@
 #include <cmath>
 #include <unistd.h>
 
+static std::random_device random_device;
+
 struct Unit {  int x, y;  char type;  };
 
 typedef std::vector<Unit> Mob;
@@ -192,8 +194,7 @@ struct Area
   public:
     void seed()
     {
-        std::random_device r;
-        std::default_random_engine e(r());
+        std::default_random_engine e(random_device());
         std::uniform_int_distribution<unsigned> uniform_dist(0, 99);
 
         for(auto y=yT; y<=yB; y++)
@@ -241,7 +242,12 @@ static MobCenter atk_likeness(const Unit& jedi, const Area& area)
                 atk[j].weigth += w[i];
         }
     }
-    return *std::max_element(std::begin(atk), std::end(atk), [](auto l, auto r){ return l.weigth < r.weigth; });
+    auto a = std::max_element(std::begin(atk), std::end(atk), [](auto l, auto r){ return l.weigth < r.weigth; });
+    auto e = std::remove_if(std::begin(atk), std::end(atk), [&a](auto m){ return m.weigth < a->weigth; });
+
+    std::default_random_engine re(random_device());
+    auto i = std::uniform_int_distribution<unsigned>(0, e - atk - 1)(re);
+    return atk[i];
 }
 
 static bool in_los(const Unit& d, const Unit& jedi, const Area& area)
@@ -314,6 +320,9 @@ bool time_step(Area& area)
     std::vector<MobCenter> dcs(droids.size());
     for(unsigned i=0; i<dcs.size(); i++)
         dcs[i] = mob_center(droids[i]);
+
+    std::default_random_engine e(random_device());
+
     for(size_t di=0; di<droids.size(); di++)
     {
         for(auto d : droids[di])
@@ -323,16 +332,20 @@ bool time_step(Area& area)
                 auto mc = dcs[di];
                 if(mc.weigth < big_enough)
                 {
-                    MobCenter* nearest_big_mob_center = nullptr;
-                    for(auto c : dcs)
-                        if(&c != &mc and c.weigth >= big_enough and (not nearest_big_mob_center or dist2(d,*nearest_big_mob_center) > dist2(d,c)))
-                            nearest_big_mob_center = &c;
-                    if(not nearest_big_mob_center)
-                        for(auto c : dcs)
-                            if(&c != &mc and (not nearest_big_mob_center or dist2(d,*nearest_big_mob_center) > dist2(d,c)))
-                                nearest_big_mob_center = &c;
-                    if(nearest_big_mob_center)
-                        area.move(d, nearest_big_mob_center->x, nearest_big_mob_center->y);
+                    std::vector<MobCenter> candidates;
+                    std::copy_if(dcs.begin(), dcs.end(), std::back_inserter(candidates), [&mc](auto& c){ return &c != &mc and c.weigth >= big_enough; });
+                    if(candidates.empty())
+                    {
+                        std::uniform_int_distribution<unsigned> uniform_dist(0, dcs.size()-1);
+                        auto i = uniform_dist(e);
+                        area.move(d, dcs[i].x, dcs[i].y);
+                    }
+                    else
+                    {
+                        std::uniform_int_distribution<unsigned> uniform_dist(0, candidates.size()-1);
+                        auto i = uniform_dist(e);
+                        area.move(d, candidates[i].x, candidates[i].y);
+                    }
                 }
             }
         }
