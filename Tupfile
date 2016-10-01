@@ -3,7 +3,8 @@
 CXXEXE = clang++ -std=c++14 -fcolor-diagnostics
 CXXLD = $(CXXEXE)
 
-CXXFLAGS += -D_GLIBCXX_DEBUG -O2 -g
+CXXFLAGS += -O2 -Wall -Wextra -Werror
+#CXXFLAGS += -O0 -ggdb3 -D_GLIBCXX_DEBUG
 
 !cxx = |> ^ CC %f^ $(CXXEXE)  $(CXXFLAGS) -c %f -o %o $(CFLAGSLOCAL) |> %B.o
 !ld = |> ^ LD %o^ $(CXXLD) -shared -o %o %f |>
